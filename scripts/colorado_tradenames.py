@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Pull Colorado trade names that look like restaurants/bars and email them as a CSV.
+"""Pull Colorado trade names that look like restaurants/bars into a CSV.
 
 Source: Colorado Information Marketplace, "Trade Names" dataset (Socrata).
 First run (no CSV yet): pulls the last FIRST_RUN_DAYS days.
 Later runs: pulls the last DAILY_LOOKBACK_DAYS days, appends only rows whose
-masterTradenameId is not already in the CSV, and emails the full CSV.
+masterTradenameId is not already in the CSV.
 
 Stdlib only. Configuration via environment variables (see README).
 """
@@ -13,13 +13,11 @@ import csv
 import json
 import os
 import re
-import smtplib
 import sys
 import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
-from email.message import EmailMessage
 from pathlib import Path
 
 BASE_URL = "https://data.colorado.gov"
@@ -110,26 +108,6 @@ def load_existing():
         return reader.fieldnames, list(reader)
 
 
-def send_email(subject, body, attachment):
-    host = os.getenv("SMTP_HOST")
-    user = os.getenv("SMTP_USER")
-    password = os.getenv("SMTP_PASSWORD")
-    if not (host and user and password):
-        print("SMTP_HOST/SMTP_USER/SMTP_PASSWORD not set; skipping email.")
-        return
-    msg = EmailMessage()
-    msg["From"] = os.getenv("EMAIL_FROM") or user
-    msg["To"] = os.getenv("EMAIL_TO") or "lorenzo@clearedtoopen.com"
-    msg["Subject"] = subject
-    msg.set_content(body)
-    msg.add_attachment(attachment.read_bytes(), maintype="text", subtype="csv", filename=attachment.name)
-    with smtplib.SMTP(host, int(os.getenv("SMTP_PORT") or "587"), timeout=60) as s:
-        s.starttls()
-        s.login(user, password)
-        s.send_message(msg)
-    print(f"Emailed {attachment} to {msg['To']}")
-
-
 def main():
     header, existing = load_existing()
     first_run = header is None
@@ -188,23 +166,6 @@ def main():
         writer.writerows(new_rows)
     total = len(existing) + len(new_rows)
     print(f"Appended {len(new_rows)} new rows to {CSV_PATH} (total {total}).")
-
-    window = f"last {days} days" if first_run else f"since the previous run (checked the last {days} days)"
-    body = (
-        f"Colorado trade names that look like restaurants, bars or other food/drink businesses.\n\n"
-        f"New rows {window}: {len(new_rows)}\n"
-        f"Total rows in the attached CSV: {total}\n"
-        f"Source: {BASE_URL}/resource/{used_id} (filtered on {DATE_FIELD}, "
-        f"keywords matched in tradenameDescription or registrantOrganization)\n"
-    )
-    if new_rows:
-        body += "\nNew rows:\n" + "\n".join(
-            f"- {r.get(field_to_name.get('tradenamedescription', 'tradenamedescription'), '')} "
-            f"({r.get(field_to_name.get('city', 'city'), '')}) [{r.get(EXTRA_COLUMN, '')}]"
-            for r in new_rows[:200]
-        )
-    subject = f"Colorado restaurant trade names {today}: {len(new_rows)} new"
-    send_email(subject, body, CSV_PATH)
 
 
 if __name__ == "__main__":

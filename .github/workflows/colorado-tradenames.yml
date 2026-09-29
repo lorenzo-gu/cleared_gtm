@@ -1,5 +1,5 @@
 name: Colorado restaurant trade names
-# Fetches Colorado trade names, filters for food/drink businesses, appends to the data/ CSV, emails it.
+# Fetches Colorado trade names, filters for food/drink businesses, appends to the data/ CSV.
 
 on:
   schedule:
@@ -21,14 +21,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Fetch, filter, append, email
+      - name: Fetch, filter, append
         env:
-          SMTP_HOST: ${{ secrets.SMTP_HOST }}
-          SMTP_PORT: ${{ secrets.SMTP_PORT }}
-          SMTP_USER: ${{ secrets.SMTP_USER }}
-          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
-          EMAIL_TO: lorenzo@clearedtoopen.com
           SOCRATA_APP_TOKEN: ${{ secrets.SOCRATA_APP_TOKEN }}
         run: python scripts/colorado_tradenames.py
       - name: Commit updated CSV
