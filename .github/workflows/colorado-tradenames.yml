@@ -1,4 +1,5 @@
 name: Colorado restaurant trade names
+# Fetches Colorado trade names, filters for food/drink businesses, appends to the data/ CSV, emails it.
 
 on:
   schedule:
